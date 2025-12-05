@@ -599,6 +599,76 @@ if let Some(backend) = get_backend(ctx).await {
 }
 ```
 
+## Использование сервисов модулей
+
+Модули могут предоставлять дополнительные сервисы плагинам через ServiceProvider. Плагины могут получать доступ к этим сервисам через `Context.services`.
+
+### Получение сервиса модуля
+
+```rust
+use aniapi::ServiceProvider;
+use std::sync::Arc;
+
+// Helper функция для получения сервиса
+async fn get_module_service<T: 'static + Send + Sync>(
+    ctx: &Context,
+    service_name: &str
+) -> Option<Arc<T>> {
+    if let Some(services) = &ctx.services {
+        if let Ok(mut provider) = services.lock() {
+            if let Some(service_any) = provider.get_service_any(service_name) {
+                if let Some(service) = service_any.downcast_ref::<Arc<T>>() {
+                    return Some(service.clone());
+                }
+            }
+        }
+    }
+    None
+}
+
+// Использование
+async fn on_load(&mut self, ctx: &Context) -> Result<()> {
+    // Получить сервис Dashboard (предоставляется модулем Dashboard)
+    if let Some(dashboard) = get_module_service::<dyn aniapi::Dashboard>(ctx, "Dashboard").await {
+        dashboard.record_command_usage("my_command").await;
+    }
+    
+    Ok(())
+}
+```
+
+### Пример: Использование Dashboard сервиса
+
+Модуль Dashboard предоставляет сервис, реализующий трейт `Dashboard`:
+
+```rust
+use aniapi::Dashboard;
+
+async fn on_event(&mut self, event: &Event, ctx: &Context) -> Result<()> {
+    match event {
+        Event::Interaction(interaction) => {
+            if let Some(dashboard) = get_module_service::<dyn Dashboard>(ctx, "Dashboard").await {
+                if let Some(command) = interaction.as_command() {
+                    dashboard.record_command_usage(&command.data.name).await;
+                }
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+```
+
+### Доступ к другим сервисам модулей
+
+Модули могут предоставлять любые сервисы через ServiceProvider. Чтобы использовать сервис модуля:
+
+1. Узнайте имя сервиса из документации модуля
+2. Получите сервис через `get_service_any(name)`
+3. Приведите к нужному типу через `downcast_ref` или `downcast`
+
+**Важно**: Всегда проверяйте наличие сервиса перед использованием, так как модуль может быть не загружен или сервис может быть недоступен.
+
 ## Сборка плагина
 
 ```bash

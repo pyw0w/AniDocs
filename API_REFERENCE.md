@@ -235,6 +235,44 @@ pub trait BackendService: Send + Sync {
 
 **Доступ к BackendService**: Получается через `Context.services` используя `get_service_any("BackendService")`.
 
+### `Module`
+
+Трейт для модулей - встроенных расширений ядра. Модули компилируются вместе с AniCore и расширяют его функциональность через интеграцию с backend-компонентами и предоставление унифицированных интерфейсов для плагинов.
+
+```rust
+#[async_trait]
+pub trait Module: Send + Sync {
+    fn name(&self) -> &str;
+    fn description(&self) -> &str { "" }
+    fn version(&self) -> &str { "1.0.0" }
+    
+    async fn initialize(&mut self, ctx: &Context) -> Result<()>;
+    async fn shutdown(&mut self, ctx: &Context) -> Result<()>;
+    async fn register_services(&self, ctx: &Context, provider: &mut dyn ServiceProvider) -> Result<()> {
+        Ok(())
+    }
+}
+```
+
+#### Методы
+
+- `name(&self) -> &str` - уникальное имя модуля
+- `description(&self) -> &str` - описание модуля (опционально)
+- `version(&self) -> &str` - версия модуля
+- `initialize(&mut self, ctx: &Context) -> Result<()>` - вызывается при инициализации модуля при загрузке ядра
+- `shutdown(&mut self, ctx: &Context) -> Result<()>` - вызывается при завершении работы модуля при остановке ядра
+- `register_services(&self, ctx: &Context, provider: &mut dyn ServiceProvider) -> Result<()>` - регистрация сервисов, которые модуль предоставляет плагинам
+
+**Особенности модулей**:
+
+- Модули компилируются вместе с ядром (встроенные расширения)
+- Модули имеют прямой доступ к внутренним компонентам AniCore
+- Модули могут предоставлять backend-интеграцию (веб-сервисы, API, панели управления)
+- Модули обеспечивают унифицированные интерфейсы для плагинов (БД, утилиты, абстракции)
+- Модули регистрируются и управляются через ModuleManager в AniCore
+
+**Пример использования**: См. руководство по модулям в `MODULE_GUIDE.md`.
+
 ## Контекст
 
 ### `Context`
