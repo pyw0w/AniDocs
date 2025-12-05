@@ -441,7 +441,183 @@ impl Plugin for MetricsPlugin {
 export_plugin!(MetricsPlugin);
 ```
 
-## Пример 6: Комплексный плагин
+## Пример 6: Плагин с BackendService
+
+```rust
+use aniapi::{export_plugin, CommandSpec, Context, Event, Plugin, Result, BackendService, ServiceProvider};
+use async_trait::async_trait;
+use serenity::builder::{
+    CreateInteractionResponse, CreateInteractionResponseMessage,
+};
+use serenity::model::application::Interaction;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+#[derive(Default)]
+pub struct DatabasePlugin;
+
+#[async_trait]
+impl Plugin for DatabasePlugin {
+    fn name(&self) -> &str {
+        "DatabasePlugin"
+    }
+
+    fn commands(&self) -> Vec<CommandSpec> {
+        vec![
+            CommandSpec::new("save_user", "Сохранить пользователя"),
+            CommandSpec::new("get_user", "Получить пользователя"),
+            CommandSpec::new("create_table", "Создать таблицу для плагина"),
+        ]
+    }
+
+    async fn on_load(&mut self, ctx: &Context) -> Result<()> {
+        // Получить BackendService через ServiceProvider
+        if let Some(services) = &ctx.services {
+            if let Ok(services_guard) = services.lock() {
+                if let Some(backend_any) = services_guard.get_service_any("BackendService") {
+                    // Создать таблицу для плагина при загрузке
+                    if let Some(backend) = backend_any.downcast_ref::<Arc<dyn BackendService>>() {
+                        backend.create_plugin_table(
+                            self.name(),
+                            "user_data",
+                            "id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL"
+                        ).await?;
+                        log::info!("Таблица создана для {}", self.name());
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn on_unload(&mut self, _ctx: &Context) -> Result<()> {
+        Ok(())
+    }
+
+    async fn on_event(&mut self, event: &Event, ctx: &Context) -> Result<()> {
+        // Получить BackendService
+        let backend = if let Some(services) = &ctx.services {
+            if let Ok(services_guard) = services.lock() {
+                if let Some(backend_any) = services_guard.get_service_any("BackendService") {
+                    backend_any.downcast_ref::<Arc<dyn BackendService>>().cloned()
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if backend.is_none() {
+            return Ok(());
+        }
+        let backend = backend.unwrap();
+
+        match event {
+            Event::Interaction(interaction) => {
+                match interaction.as_ref() {
+                    Interaction::Command(command) => {
+                        match command.data.name.as_str() {
+                            "save_user" => {
+                                let user_id = command.user.id.get();
+                                let username = &command.user.name;
+                                
+                                // Сохранить пользователя
+                                backend.create_user(user_id, username).await?;
+                                
+                                let response = CreateInteractionResponseMessage::new()
+                                    .content(&format!("Пользователь {} сохранён!", username));
+                                let builder = CreateInteractionResponse::Message(response);
+                                
+                                if let Some(responder) = &ctx.responder {
+                                    responder.respond(
+                                        command.id.get(),
+                                        &command.token,
+                                        builder,
+                                    )
+                                    .await?;
+                                }
+                            }
+                            "get_user" => {
+                                let user_id = command.user.id.get();
+                                
+                                if let Some((id, username)) = backend.get_user(user_id).await? {
+                                    let response = CreateInteractionResponseMessage::new()
+                                        .content(&format!("Пользователь: {} (ID: {})", username, id));
+                                    let builder = CreateInteractionResponse::Message(response);
+                                    
+                                    if let Some(responder) = &ctx.responder {
+                                        responder.respond(
+                                            command.id.get(),
+                                            &command.token,
+                                            builder,
+                                        )
+                                        .await?;
+                                    }
+                                } else {
+                                    let response = CreateInteractionResponseMessage::new()
+                                        .content("Пользователь не найден");
+                                    let builder = CreateInteractionResponse::Message(response);
+                                    
+                                    if let Some(responder) = &ctx.responder {
+                                        responder.respond(
+                                            command.id.get(),
+                                            &command.token,
+                                            builder,
+                                        )
+                                        .await?;
+                                    }
+                                }
+                            }
+                            "create_table" => {
+                                // Создать таблицу для хранения данных плагина
+                                backend.create_plugin_table(
+                                    self.name(),
+                                    "custom_data",
+                                    "id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT UNIQUE, value TEXT"
+                                ).await?;
+                                
+                                // Вставить тестовые данные
+                                let mut values = HashMap::new();
+                                values.insert("key".to_string(), "test_key".to_string());
+                                values.insert("value".to_string(), "test_value".to_string());
+                                backend.insert_plugin_data(
+                                    self.name(),
+                                    "custom_data",
+                                    values
+                                ).await?;
+                                
+                                let response = CreateInteractionResponseMessage::new()
+                                    .content("Таблица создана и заполнена тестовыми данными!");
+                                let builder = CreateInteractionResponse::Message(response);
+                                
+                                if let Some(responder) = &ctx.responder {
+                                    responder.respond(
+                                        command.id.get(),
+                                        &command.token,
+                                        builder,
+                                    )
+                                    .await?;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
+
+export_plugin!(DatabasePlugin);
+```
+
+## Пример 7: Комплексный плагин
 
 Полный пример плагина, использующего все возможности API, можно найти в:
 - `plugins/utils_plugin/src/lib.rs` - пример с командами и кнопками

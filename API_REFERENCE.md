@@ -178,6 +178,63 @@ pub trait ConfigManager: Send + Sync {
 }
 ```
 
+### `BackendService`
+
+Сервис для работы с базой данных (SQLite). Предоставляет функционал для статистики, пользователей, плагинов и расширяемых таблиц.
+
+```rust
+#[async_trait]
+pub trait BackendService: Send + Sync {
+    // Статистика
+    async fn save_command_stats(&self, command_name: &str, count: u64) -> Result<()>;
+    async fn get_command_stats(&self, command_name: &str) -> Result<Option<u64>>;
+    async fn save_latency(&self, latency_ms: f64) -> Result<()>;
+    async fn get_latency_history(&self, limit: Option<usize>) -> Result<Vec<f64>>;
+    
+    // Пользователи
+    async fn create_user(&self, user_id: u64, username: &str) -> Result<()>;
+    async fn update_user(&self, user_id: u64, username: &str) -> Result<()>;
+    async fn get_user(&self, user_id: u64) -> Result<Option<(u64, String)>>;
+    async fn get_all_users(&self) -> Result<Vec<(u64, String)>>;
+    
+    // Расширяемые таблицы для плагинов
+    async fn create_plugin_table(&self, plugin_name: &str, table_name: &str, columns: &str) -> Result<()>;
+    async fn insert_plugin_data(&self, plugin_name: &str, table_name: &str, values: HashMap<String, String>) -> Result<()>;
+    async fn query_plugin_data(&self, plugin_name: &str, table_name: &str, query: &str) -> Result<Vec<HashMap<String, String>>>;
+    async fn delete_plugin_data(&self, plugin_name: &str, table_name: &str, condition: &str) -> Result<()>;
+    
+    // Произвольные SQL запросы
+    async fn execute_query(&self, query: &str) -> Result<Vec<HashMap<String, String>>>;
+}
+```
+
+#### Методы статистики
+
+- `save_command_stats(command_name, count)` - сохранить статистику использования команды
+- `get_command_stats(command_name)` - получить статистику использования команды
+- `save_latency(latency_ms)` - сохранить значение латентности
+- `get_latency_history(limit)` - получить историю латентности (последние N записей)
+
+#### Методы работы с пользователями
+
+- `create_user(user_id, username)` - создать нового пользователя
+- `update_user(user_id, username)` - обновить данные пользователя
+- `get_user(user_id)` - получить пользователя по ID
+- `get_all_users()` - получить всех пользователей
+
+#### Методы работы с таблицами плагинов
+
+- `create_plugin_table(plugin_name, table_name, columns)` - создать таблицу для плагина
+- `insert_plugin_data(plugin_name, table_name, values)` - вставить данные в таблицу плагина
+- `query_plugin_data(plugin_name, table_name, query)` - выполнить запрос к таблице плагина
+- `delete_plugin_data(plugin_name, table_name, condition)` - удалить данные из таблицы плагина
+
+#### Произвольные SQL запросы
+
+- `execute_query(query)` - выполнить произвольный SQL запрос для расширенных сценариев
+
+**Доступ к BackendService**: Получается через `Context.services` используя `get_service_any("BackendService")`.
+
 ## Контекст
 
 ### `Context`
@@ -192,10 +249,24 @@ pub struct Context {
     pub dashboard: Option<Arc<dyn Dashboard>>,   // Дашборд
     pub logger: Option<&'static dyn log::Log>,   // Логгер
     pub config: Option<Arc<dyn ConfigManager>>,  // Конфигурация
+    pub services: Option<Arc<std::sync::Mutex<dyn ServiceProvider>>>, // Провайдер сервисов
 }
 ```
 
 **Важно**: Все поля кроме `cache` опциональны. Всегда проверяйте наличие сервиса перед использованием.
+
+**Доступ к сервисам**: Используйте `Context.services` для получения сервисов через `ServiceProvider`:
+```rust
+if let Some(services) = &ctx.services {
+    if let Ok(services_guard) = services.lock() {
+        if let Some(backend_any) = services_guard.get_service_any("BackendService") {
+            if let Some(backend) = backend_any.downcast_ref::<Arc<dyn BackendService>>() {
+                // Используйте backend
+            }
+        }
+    }
+}
+```
 
 ## Макросы
 

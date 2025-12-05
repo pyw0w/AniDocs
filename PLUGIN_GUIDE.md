@@ -336,6 +336,125 @@ async fn on_event(&mut self, event: &Event, ctx: &Context) -> Result<()> {
 }
 ```
 
+## Работа с BackendService (база данных)
+
+### Получение BackendService
+
+```rust
+async fn on_load(&mut self, ctx: &Context) -> Result<()> {
+    // Получить BackendService через ServiceProvider
+    if let Some(services) = &ctx.services {
+        if let Ok(services_guard) = services.lock() {
+            if let Some(backend_any) = services_guard.get_service_any("BackendService") {
+                if let Some(backend) = backend_any.downcast_ref::<Arc<dyn BackendService>>() {
+                    // Используйте backend
+                }
+            }
+        }
+    }
+    Ok(())
+}
+```
+
+### Работа со статистикой
+
+```rust
+// Сохранить статистику команды
+backend.save_command_stats("my_command", 10).await?;
+
+// Получить статистику команды
+if let Some(count) = backend.get_command_stats("my_command").await? {
+    println!("Команда использована {} раз", count);
+}
+
+// Сохранить латентность
+backend.save_latency(150.5).await?;
+
+// Получить историю латентности (последние 100 записей)
+let history = backend.get_latency_history(Some(100)).await?;
+```
+
+### Работа с пользователями
+
+```rust
+// Создать пользователя
+backend.create_user(user_id, "username").await?;
+
+// Обновить пользователя
+backend.update_user(user_id, "new_username").await?;
+
+// Получить пользователя
+if let Some((id, username)) = backend.get_user(user_id).await? {
+    println!("Пользователь: {} (ID: {})", username, id);
+}
+
+// Получить всех пользователей
+let users = backend.get_all_users().await?;
+```
+
+### Создание таблиц для плагина
+
+```rust
+// Создать таблицу при загрузке плагина
+async fn on_load(&mut self, ctx: &Context) -> Result<()> {
+    if let Some(services) = &ctx.services {
+        if let Ok(services_guard) = services.lock() {
+            if let Some(backend_any) = services_guard.get_service_any("BackendService") {
+                if let Some(backend) = backend_any.downcast_ref::<Arc<dyn BackendService>>() {
+                    backend.create_plugin_table(
+                        self.name(),
+                        "my_table",
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT, data TEXT NOT NULL"
+                    ).await?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+```
+
+### Работа с данными плагина
+
+```rust
+use std::collections::HashMap;
+
+// Вставить данные
+let mut values = HashMap::new();
+values.insert("key".to_string(), "value1".to_string());
+values.insert("data".to_string(), "value2".to_string());
+backend.insert_plugin_data("MyPlugin", "my_table", values).await?;
+
+// Запросить данные
+let results = backend.query_plugin_data(
+    "MyPlugin",
+    "my_table",
+    "SELECT * FROM my_table WHERE key = 'value1'"
+).await?;
+
+// Удалить данные
+backend.delete_plugin_data(
+    "MyPlugin",
+    "my_table",
+    "id = 1"
+).await?;
+```
+
+### Произвольные SQL запросы
+
+```rust
+// Для сложных запросов можно использовать execute_query
+let results = backend.execute_query(
+    "SELECT command_name, count FROM command_stats ORDER BY count DESC LIMIT 10"
+).await?;
+
+for row in results {
+    if let (Some(name), Some(count)) = (row.get("command_name"), row.get("count")) {
+        println!("{}: {}", name, count);
+    }
+}
+```
+
 ## Обработка системных событий
 
 ```rust
@@ -397,6 +516,88 @@ async fn on_event(&mut self, event: &Event, ctx: &Context) -> Result<()> {
    ```
 
 5. **Используйте значения по умолчанию для конфигурации**: Всегда предоставляйте `Default` для конфигурации
+
+## Работа с базой данных (BackendService)
+
+BackendService предоставляет доступ к SQLite базе данных для хранения данных плагинов.
+
+### Получение BackendService
+
+```rust
+use aniapi::{BackendService, ServiceProvider};
+use std::sync::Arc;
+
+async fn get_backend(ctx: &Context) -> Option<Arc<dyn BackendService>> {
+    if let Some(services) = &ctx.services {
+        if let Ok(services_guard) = services.lock() {
+            if let Some(backend_any) = services_guard.get_service_any("BackendService") {
+                if let Some(backend) = backend_any.downcast_ref::<Arc<dyn BackendService>>() {
+                    return Some(backend.clone());
+                }
+            }
+        }
+    }
+    None
+}
+```
+
+### Сохранение и получение статистики
+
+```rust
+if let Some(backend) = get_backend(ctx).await {
+    // Сохранить статистику команды
+    backend.save_command_stats("my_command", 10).await?;
+    
+    // Получить статистику
+    if let Ok(Some(count)) = backend.get_command_stats("my_command").await {
+        println!("Команда использована {} раз", count);
+    }
+}
+```
+
+### Работа с пользователями
+
+```rust
+// Создать пользователя
+backend.create_user(123456789, "username").await?;
+
+// Получить пользователя
+if let Ok(Some((user_id, username))) = backend.get_user(123456789).await {
+    println!("Пользователь: {} ({})", username, user_id);
+}
+```
+
+### Создание собственных таблиц для плагина
+
+```rust
+// Создать таблицу при загрузке плагина
+async fn on_load(&mut self, ctx: &Context) -> Result<()> {
+    if let Some(backend) = get_backend(ctx).await {
+        backend.create_plugin_table(
+            "my_plugin",
+            "user_data",
+            "id INTEGER PRIMARY KEY, data TEXT NOT NULL"
+        ).await?;
+    }
+    Ok(())
+}
+
+// Использование таблицы
+if let Some(backend) = get_backend(ctx).await {
+    let mut values = HashMap::new();
+    values.insert("id".to_string(), "1".to_string());
+    values.insert("data".to_string(), "some data".to_string());
+    
+    backend.insert_plugin_data("my_plugin", "user_data", values).await?;
+    
+    // Запрос данных
+    let results = backend.query_plugin_data(
+        "my_plugin",
+        "user_data",
+        "SELECT * FROM user_data WHERE id = 1"
+    ).await?;
+}
+```
 
 ## Сборка плагина
 
