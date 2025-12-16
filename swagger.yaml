@@ -1,0 +1,442 @@
+basePath: /api/v1
+definitions:
+  models.CreatePluginRequest:
+    properties:
+      author:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+      version:
+        type: string
+    required:
+    - author
+    - name
+    - version
+    type: object
+  models.CreateStatRequest:
+    properties:
+      event_data:
+        type: string
+      event_type:
+        type: string
+      plugin_id:
+        type: string
+    required:
+    - event_type
+    - plugin_id
+    type: object
+  models.CreateWebhookRequest:
+    properties:
+      enabled:
+        type: boolean
+      events:
+        items:
+          type: string
+        type: array
+      secret:
+        type: string
+      url:
+        type: string
+    required:
+    - events
+    - url
+    type: object
+  models.ErrorResponse:
+    properties:
+      code:
+        type: integer
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  models.HealthResponse:
+    properties:
+      status:
+        type: string
+      uptime:
+        type: string
+      version:
+        type: string
+    type: object
+  models.Plugin:
+    properties:
+      author:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: string
+    type: object
+  models.PluginListResponse:
+    properties:
+      plugins:
+        items:
+          $ref: '#/definitions/models.Plugin'
+        type: array
+      total:
+        type: integer
+    type: object
+  models.PluginStat:
+    properties:
+      created_at:
+        type: string
+      event_data:
+        type: string
+      event_type:
+        type: string
+      id:
+        type: integer
+      plugin_id:
+        type: string
+    type: object
+  models.PluginStatSummary:
+    properties:
+      event_count:
+        type: integer
+      last_event:
+        type: string
+      plugin_id:
+        type: string
+      plugin_name:
+        type: string
+    type: object
+  models.StatsResponse:
+    properties:
+      enabled_plugins:
+        type: integer
+      plugin_stats:
+        items:
+          $ref: '#/definitions/models.PluginStatSummary'
+        type: array
+      recent_events:
+        items:
+          $ref: '#/definitions/models.PluginStat'
+        type: array
+      total_events:
+        type: integer
+      total_plugins:
+        type: integer
+    type: object
+  models.UpdatePluginRequest:
+    properties:
+      author:
+        type: string
+      description:
+        type: string
+      enabled:
+        type: boolean
+      name:
+        type: string
+      version:
+        type: string
+    type: object
+  models.Webhook:
+    properties:
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      events:
+        description: JSON массив событий
+        type: string
+      id:
+        type: string
+      secret:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@anidev.github.io
+    name: API Support
+    url: https://anidev.github.io/support
+  description: Публичное REST API для разработчиков модулей AniDev
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://anidev.github.io/terms
+  title: AniApi
+  version: "1.0"
+paths:
+  /api/v1/health:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает статус сервиса и время работы
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.HealthResponse'
+      summary: Проверка здоровья сервиса
+      tags:
+      - health
+  /api/v1/plugins:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список всех зарегистрированных плагинов
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PluginListResponse'
+      summary: Получить список плагинов
+      tags:
+      - plugins
+    post:
+      consumes:
+      - application/json
+      description: Регистрирует новый плагин в системе
+      parameters:
+      - description: Plugin data
+        in: body
+        name: plugin
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreatePluginRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Plugin'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Создать новый плагин
+      tags:
+      - plugins
+  /api/v1/plugins/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет плагин из системы
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Удалить плагин
+      tags:
+      - plugins
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о конкретном плагине
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Plugin'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Получить плагин по ID
+      tags:
+      - plugins
+    put:
+      consumes:
+      - application/json
+      description: Обновляет информацию о плагине
+      parameters:
+      - description: Plugin ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Plugin update data
+        in: body
+        name: plugin
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdatePluginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Plugin'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Обновить плагин
+      tags:
+      - plugins
+  /api/v1/stats:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает общую статистику использования плагинов
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.StatsResponse'
+      summary: Получить статистику
+      tags:
+      - stats
+    post:
+      consumes:
+      - application/json
+      description: Регистрирует новое событие использования плагина
+      parameters:
+      - description: Stat data
+        in: body
+        name: stat
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateStatRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.PluginStat'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Создать событие статистики
+      tags:
+      - stats
+  /api/v1/webhooks:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список всех зарегистрированных вебхуков
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Webhook'
+            type: array
+      summary: Получить список вебхуков
+      tags:
+      - webhooks
+    post:
+      consumes:
+      - application/json
+      description: Регистрирует новый вебхук для получения событий
+      parameters:
+      - description: Webhook data
+        in: body
+        name: webhook
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Webhook'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Создать вебхук
+      tags:
+      - webhooks
+  /api/v1/webhooks/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет вебхук из системы
+      parameters:
+      - description: Webhook ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Удалить вебхук
+      tags:
+      - webhooks
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о конкретном вебхуке
+      parameters:
+      - description: Webhook ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Webhook'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Получить вебхук по ID
+      tags:
+      - webhooks
+schemes:
+- http
+- https
+swagger: "2.0"
