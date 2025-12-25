@@ -33,6 +33,7 @@ project/
       "domains": {
         "admin_domain": "admin.anidev.com",
         "user_domain": "app.anidev.com",
+        "api_domain": "api.anidev.com",
         "admin_frontend_path": "./frontend-admin/dist",
         "user_frontend_path": "./frontend-user/dist"
       }
@@ -72,33 +73,33 @@ npm run build
 
 #### Для продакшена (nginx)
 
-Настройте nginx для проксирования на backend:
+Подробная инструкция по настройке Nginx находится в [`docs/nginx-setup.md`](nginx-setup.md).
 
-```nginx
-# Админский домен
-server {
-    listen 80;
-    server_name admin.anidev.com;
-    
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
+Пример конфигурации: [`docs/nginx.example.conf`](nginx.example.conf)
 
-# Пользовательский домен
-server {
-    listen 80;
-    server_name app.anidev.com;
-    
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
+Быстрый старт:
+
+```bash
+# Скопируйте пример конфигурации
+sudo cp docs/nginx.example.conf /etc/nginx/sites-available/anidev
+
+# Отредактируйте домены и пути
+sudo nano /etc/nginx/sites-available/anidev
+
+# Проверьте конфигурацию
+sudo nginx -t
+
+# Включите сайт и перезагрузите Nginx
+sudo ln -s /etc/nginx/sites-available/anidev /etc/nginx/sites-enabled/
+sudo systemctl reload nginx
 ```
+
+**Важно**: Убедитесь, что в конфигурации Nginx передается заголовок `Host`:
+```nginx
+proxy_set_header Host $host;
+```
+
+Это необходимо для правильной работы Domain Controller.
 
 ### 5. Запуск
 
@@ -106,17 +107,19 @@ server {
 # Запустите backend
 ./anidev -config config.json
 
-# Backend будет обслуживать оба домена
-# - admin.anidev.com -> frontend-admin/dist
-# - app.anidev.com -> frontend-user/dist
+# Backend будет обслуживать три домена:
+# - admin.anidev.com -> frontend-admin/dist + API
+# - app.anidev.com -> frontend-user/dist + API
+# - api.anidev.com -> только API (без frontend)
 ```
 
 ## Как это работает
 
 1. **Domain Middleware** определяет домен из заголовка `Host`
-2. **Static Handler** раздает соответствующий frontend
+2. **Static Handler** раздает соответствующий frontend (только на admin/user доменах)
 3. **API маршруты** (`/api/v1/*`) доступны с любого домена
-4. **SPA роутинг** - все не-API запросы отдают `index.html`
+4. **API домен** (`api.domain.ru`) - только API, frontend не отдается
+5. **SPA роутинг** - все не-API запросы на admin/user доменах отдают `index.html`
 
 ## Примеры использования
 

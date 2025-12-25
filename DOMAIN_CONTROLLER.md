@@ -25,6 +25,7 @@ Domain Controller позволяет обслуживать два разных 
     "domains": {
       "admin_domain": "admin.anidev.com",
       "user_domain": "app.anidev.com",
+      "api_domain": "api.anidev.com",
       "admin_frontend_path": "./frontend-admin/dist",
       "user_frontend_path": "./frontend-user/dist"
     }
@@ -36,13 +37,15 @@ Domain Controller позволяет обслуживать два разных 
 
 - `admin_domain` - домен для админ панели (например: `admin.anidev.com`)
 - `user_domain` - домен для пользовательского интерфейса (например: `app.anidev.com` или `anidev.com`)
+- `api_domain` - домен для API (например: `api.anidev.com`) - только API, без frontend
 - `admin_frontend_path` - путь к собранному админскому frontend (директория с `index.html` и статическими файлами)
 - `user_frontend_path` - путь к собранному пользовательскому frontend
 
 ## Типы доменов
 
-- `DomainTypeAdmin` - админский домен
-- `DomainTypeUser` - пользовательский домен
+- `DomainTypeAdmin` - админский домен (frontend + API)
+- `DomainTypeUser` - пользовательский домен (frontend + API)
+- `DomainTypeAPI` - API домен (только API, без frontend)
 - `DomainTypeUnknown` - неизвестный домен (по умолчанию используется пользовательский)
 
 ## Использование в коде
@@ -77,9 +80,10 @@ adminGroup.Use(middleware.RequireDomainType(middleware.DomainTypeAdmin))
 
 ## Маршрутизация
 
-1. **API маршруты** (`/api/v1/*`) - обрабатываются независимо от домена
-2. **Статические файлы** - раздаются из соответствующего frontend в зависимости от домена
-3. **SPA роутинг** - все не-API запросы отдают `index.html` соответствующего frontend
+1. **API маршруты** (`/api/v1/*`) - обрабатываются независимо от домена, доступны на всех доменах
+2. **Статические файлы** - раздаются из соответствующего frontend только на admin/user доменах
+3. **API домен** (`api.domain.ru`) - только API, frontend не отдается, корневой путь возвращает информацию об API
+4. **SPA роутинг** - все не-API запросы на admin/user доменах отдают `index.html` соответствующего frontend
 
 ## Примеры использования
 
