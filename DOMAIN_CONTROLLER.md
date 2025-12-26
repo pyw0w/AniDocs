@@ -24,7 +24,7 @@ Domain Controller позволяет обслуживать два разных 
     "port": 8080,
     "domains": {
       "admin_domain": "admin.anidev.com",
-      "user_domain": "app.anidev.com",
+      "user_domain": "anidev.com",
       "api_domain": "api.anidev.com",
       "admin_frontend_path": "./frontend-admin/dist",
       "user_frontend_path": "./frontend-user/dist"
@@ -110,7 +110,7 @@ adminGroup.Use(middleware.RequireDomainType(middleware.DomainTypeAdmin))
 {
   "domains": {
     "admin_domain": "admin.anidev.com",
-    "user_domain": "app.anidev.com",
+    "user_domain": "anidev.com",
     "admin_frontend_path": "/var/www/anidev/frontend-admin/dist",
     "user_frontend_path": "/var/www/anidev/frontend-user/dist"
   }
@@ -149,5 +149,5 @@ Domain Controller логирует определение домена на ур
 
 ```
 Domain detected: admin.anidev.com -> admin
-Domain detected: app.anidev.com -> user
+Domain detected: anidev.com -> user
 ```

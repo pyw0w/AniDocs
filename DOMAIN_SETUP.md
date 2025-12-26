@@ -4,18 +4,18 @@
 
 ### 1. Структура frontend приложений
 
-Создайте два отдельных frontend приложения:
+В проекте используется один frontend, который собирается в две разные папки для админской и пользовательской панелей:
 
 ```
 project/
-├── frontend-admin/     # Админская панель
+├── frontend/          # Исходный код frontend
 │   ├── src/
-│   ├── dist/          # Собранные файлы
+│   ├── dist/          # Временная папка сборки (не используется для production)
 │   └── package.json
-├── frontend-user/     # Пользовательский интерфейс
-│   ├── src/
-│   ├── dist/          # Собранные файлы
-│   └── package.json
+├── frontend-admin/    # Собранные файлы админской панели
+│   └── dist/          # Генерируется командой make build-frontend-admin
+├── frontend-user/     # Собранные файлы пользовательского интерфейса
+│   └── dist/          # Генерируется командой make build-frontend-user
 └── cmd/anidev/        # Backend
 ```
 
@@ -32,7 +32,7 @@ project/
       "port": 8080,
       "domains": {
         "admin_domain": "admin.anidev.com",
-        "user_domain": "app.anidev.com",
+        "user_domain": "anidev.com",
         "api_domain": "api.anidev.com",
         "admin_frontend_path": "./frontend-admin/dist",
         "user_frontend_path": "./frontend-user/dist"
@@ -44,16 +44,22 @@ project/
 
 ### 3. Сборка frontend
 
-```bash
-# Админская панель
-cd frontend-admin
-npm install
-npm run build
+Используйте команды Makefile для сборки frontend:
 
-# Пользовательский интерфейс
-cd frontend-user
-npm install
-npm run build
+```bash
+# Собрать оба frontend (admin и user)
+make build-frontend
+
+# Или собрать отдельно:
+make build-frontend-admin  # Собирает в frontend-admin/dist
+make build-frontend-user   # Собирает в frontend-user/dist
+```
+
+Пути сборки можно переопределить через переменные окружения:
+
+```bash
+FRONTEND_ADMIN_PATH=./custom-admin/dist make build-frontend-admin
+FRONTEND_USER_PATH=./custom-user/dist make build-frontend-user
 ```
 
 ### 4. Настройка доменов
@@ -109,7 +115,7 @@ proxy_set_header Host $host;
 
 # Backend будет обслуживать три домена:
 # - admin.anidev.com -> frontend-admin/dist + API
-# - app.anidev.com -> frontend-user/dist + API
+# - anidev.com -> frontend-user/dist + API
 # - api.anidev.com -> только API (без frontend)
 ```
 

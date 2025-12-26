@@ -33,7 +33,7 @@ sudo nano /etc/nginx/sites-available/anidev
 
 Измените:
 - `admin.anidev.com` на ваш админский домен
-- `app.anidev.com` на ваш пользовательский домен
+- `anidev.com` на ваш пользовательский домен (или корневой домен)
 - `api.anidev.com` на ваш API домен
 - `127.0.0.1:8080` на адрес вашего backend (если отличается)
 
@@ -53,7 +53,7 @@ sudo systemctl reload nginx
 
 ```
 A    admin.anidev.com    ->  YOUR_SERVER_IP
-A    app.anidev.com       ->  YOUR_SERVER_IP
+A    anidev.com           ->  YOUR_SERVER_IP
 A    api.anidev.com       ->  YOUR_SERVER_IP
 ```
 
@@ -66,7 +66,7 @@ A    api.anidev.com       ->  YOUR_SERVER_IP
 sudo apt install certbot python3-certbot-nginx
 
 # Получение сертификатов для всех доменов
-sudo certbot --nginx -d admin.anidev.com -d app.anidev.com -d api.anidev.com
+sudo certbot --nginx -d admin.anidev.com -d anidev.com -d api.anidev.com
 
 # Certbot автоматически обновит конфигурацию Nginx
 ```
@@ -130,11 +130,11 @@ limit_req_zone $binary_remote_addr zone=general_limit:10m rate=100r/s;
 ```bash
 # Логи доступа
 sudo tail -f /var/log/nginx/admin.anidev.com.access.log
-sudo tail -f /var/log/nginx/app.anidev.com.access.log
+sudo tail -f /var/log/nginx/anidev.com.access.log
 
 # Логи ошибок
 sudo tail -f /var/log/nginx/admin.anidev.com.error.log
-sudo tail -f /var/log/nginx/app.anidev.com.error.log
+sudo tail -f /var/log/nginx/anidev.com.error.log
 ```
 
 ### Статистика
